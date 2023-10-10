@@ -1,6 +1,6 @@
 use bevy::prelude::{Transform, Vec2};
 
-use crate::ecs::components::{Kinematic2D, Boid};
+use crate::ecs::components::{Boid, Kinematic2D};
 
 use super::vec3_to_vec2;
 
@@ -10,7 +10,7 @@ const SEPERATE_COEF: f32 = 1.0;
 
 pub fn alignment(
     _boid: (&Transform, &Kinematic2D),
-    other_boids: &Vec<(&Transform, &Kinematic2D)>
+    other_boids: &Vec<(&Transform, &Kinematic2D)>,
 ) -> Vec2 {
     let mut velocity = Vec2::ZERO;
 
@@ -26,7 +26,7 @@ pub fn alignment(
 
 pub fn cohere(
     boid: (&Transform, &Kinematic2D),
-    other_boids: &Vec<(&Transform, &Kinematic2D)>
+    other_boids: &Vec<(&Transform, &Kinematic2D)>,
 ) -> Vec2 {
     let mut velocity = Vec2::ZERO;
 
@@ -44,7 +44,7 @@ pub fn cohere(
 
 pub fn seperate(
     boid: (&Transform, &Kinematic2D, &Boid),
-    other_boids: &Vec<(&Transform, &Kinematic2D)>
+    other_boids: &Vec<(&Transform, &Kinematic2D)>,
 ) -> Vec2 {
     let mut velocity = Vec2::ZERO;
 

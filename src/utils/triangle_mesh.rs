@@ -1,4 +1,7 @@
-use bevy::{render::{render_resource::PrimitiveTopology, mesh::Indices}, prelude::{Mesh, Vec3}};
+use bevy::{
+    prelude::{Mesh, Vec3},
+    render::{mesh::Indices, render_resource::PrimitiveTopology},
+};
 
 pub fn create_2d() -> Mesh {
     let vertices = vec![
@@ -8,10 +11,7 @@ pub fn create_2d() -> Mesh {
         Vec3::new(-0.4, 0., 0.),
     ];
 
-    let indices = vec![
-        0, 1, 3,
-        1, 2, 3,
-    ];
+    let indices = vec![0, 1, 3, 1, 2, 3];
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
     mesh.set_indices(Some(Indices::U32(indices)));
@@ -29,14 +29,7 @@ pub fn create_3d() -> Mesh {
         Vec3::new(-0.4, 0., -0.2),
     ];
 
-    let indices = vec![
-        0, 1, 3,
-        1, 2, 3,
-        0, 1, 4,
-        1, 2, 4,
-        0, 3, 4,
-        1, 3, 4,
-    ];
+    let indices = vec![0, 1, 3, 1, 2, 3, 0, 1, 4, 1, 2, 4, 0, 3, 4, 1, 3, 4];
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
     mesh.set_indices(Some(Indices::U32(indices)));

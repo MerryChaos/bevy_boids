@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-
 #[derive(Component)]
 pub struct Boid {
     pub perception_radius: f32,
