@@ -2,12 +2,12 @@ use bevy::window::{PrimaryWindow, WindowResized};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::prelude::*;
 
-use crate::utils::boid_rules::{alignment, cohere, seperate};
+use crate::utils::flocking_rules::{alignment, cohesion, separation};
 use crate::utils::triangle_mesh;
 use crate::utils::vec2_to_vec3;
 
-use super::components::{Boid, DesiredVelocity2D, Kinematic2D};
-use super::resources::{BoidCount, BoidMaxSpeed, BoidScale};
+use super::components::{Boid, DesiredAcceleration2D, Kinematic2D};
+use super::resources::{BoidCount, BoidMaxSpeed, BoidScale, BoidPerceptionRadius};
 
 pub fn setup_camera(
     mut commands: Commands,
@@ -46,13 +46,23 @@ pub fn spawn_boids(
     boid_count: Res<BoidCount>,
     boid_scale: Res<BoidScale>,
     boid_max_speed: Res<BoidMaxSpeed>,
+    boid_perception_radius: Res<BoidPerceptionRadius>,
 ) {
     let window = window_query.get_single().unwrap();
     let mut rng = rand::thread_rng();
-    let n = boid_count.0;
+    
+    for i in 0..boid_count.0 {
+        let mut color = Color::rgb(0., 1., rng.gen());
+        if i == boid_count.0 - 1 {
+            color = Color::hex("FFBB00").unwrap();
+        }
 
-    for i in 0..n {
-        let color = Color::rgb(0., 1., rng.gen());
+        let angle_deg: f32 = rng.gen_range(0.0..360.0);
+        let angle_rad: f32 = angle_deg.to_radians();
+        let velocity = Vec2::new(
+            boid_max_speed.0 * angle_rad.cos(),
+            boid_max_speed.0 * angle_rad.sin(),
+        );
 
         commands.spawn((
             MaterialMesh2dBundle {
@@ -64,22 +74,18 @@ pub fn spawn_boids(
                         y: rng.gen::<f32>() * window.height(),
                         z: i as f32,
                     },
-                    rotation: Quat::from_xyzw(0., 0., rng.gen::<f32>(), 1.),
+                    rotation: Quat::default(),
                     scale: Vec3::ONE * boid_scale.0,
                 },
-                // transform: Transform::from_xyz(0., 0., x as f32),
                 ..default()
             },
             Kinematic2D {
-                max_speed: boid_max_speed.0,
+                move_speed: boid_max_speed.0,
                 acceleration: Vec2::ZERO,
-                velocity: Vec2::new(rng.gen::<f32>() * 2. - 1., rng.gen::<f32>() * 2. - 1.)
-                    .normalize()
-                    * boid_max_speed.0,
+                velocity,
             },
             Boid {
-                perception_radius: boid_scale.0 + 100.,
-                seperate_distance: boid_scale.0 + 100.,
+                perception_radius: boid_perception_radius.0,
             },
         ));
     }
@@ -108,37 +114,35 @@ pub fn calculate_boid_velocity(
             }
 
             // Step #2: Calculate velocity
-            let v_align = alignment((&transform, &kinematic), &percepted_boids);
-            let v_cohere = cohere((&transform, &kinematic), &percepted_boids);
-            let v_seperate = seperate((&transform, &kinematic, &boid), &percepted_boids);
-
-            let desired_velocity = v_align + v_cohere + v_seperate;
+            let mut desired_acceleration = Vec2::ZERO;
+            desired_acceleration += alignment((&transform, &kinematic), &percepted_boids);
+            desired_acceleration += cohesion((&transform, &kinematic), &percepted_boids);
+            desired_acceleration += separation((&transform, &kinematic, &boid), &percepted_boids);
 
             par_commands.command_scope(|mut commands| {
                 commands
                     .entity(entity)
-                    .insert(DesiredVelocity2D(desired_velocity));
+                    .insert(DesiredAcceleration2D(desired_acceleration));
             });
         });
 }
 
 pub fn move_boids(
-    mut query: Query<(&mut Transform, &mut Kinematic2D, &DesiredVelocity2D), With<Boid>>,
+    mut query: Query<(&mut Transform, &mut Kinematic2D, &DesiredAcceleration2D), With<Boid>>,
     time: Res<Time>,
 ) {
     query
         .par_iter_mut()
-        .for_each_mut(|(mut transform, mut kinematic, desired_velocity)| {
-            kinematic.acceleration =
-                kinematic.acceleration + kinematic.acceleration.lerp(desired_velocity.0, 0.2);
-            kinematic.velocity = kinematic.velocity + kinematic.acceleration;
-            if kinematic.velocity.length() > kinematic.max_speed {
-                kinematic.acceleration = Vec2::ZERO;
-                kinematic.velocity = kinematic.velocity.normalize() * kinematic.max_speed;
+        .for_each_mut(|(mut transform, mut kinematic, desired_acceleration)| {
+            kinematic.acceleration += desired_acceleration.0;
+            kinematic.velocity = kinematic.velocity + kinematic.acceleration * time.delta_seconds();
+            if kinematic.velocity.length_squared() > kinematic.move_speed * kinematic.move_speed {
+                kinematic.velocity = kinematic.velocity.normalize_or_zero() * kinematic.move_speed;
             }
 
             transform.translation += vec2_to_vec3(kinematic.velocity, None) * time.delta_seconds();
 
+            // Rotate
             let angle = kinematic.velocity.y.atan2(kinematic.velocity.x);
             transform.rotation = Quat::from_rotation_z(angle);
         });

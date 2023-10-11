@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-pub mod boid_rules;
+pub mod flocking_rules;
 pub mod triangle_mesh;
 
 pub fn vec3_to_vec2(vector: Vec3) -> Vec2 {
